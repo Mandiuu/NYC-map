@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NYC Map with Data Points</title>
+  <title>NYC Map of the summons of alcohol and drugs in 2023 </title>
   <script src="https://d3js.org/d3.v6.min.js"></script>
   <script src="https://unpkg.com/topojson@3"></script>
   <style>
@@ -122,31 +122,29 @@ async function renderMap() {
   // Sort the incidents by date
   incidents.sort((a, b) => a.date - b.date);
 
-  // Create a group for the circles
   const g = svg.append("g");
 
-  // Bind data to circles
   const dot = g.selectAll("circle")
     .data(incidents)
     .join("circle")
     .attr("transform", d => `translate(${d.coordinates[0]}, ${d.coordinates[1]})`)
-    .attr("r", 5) // Bigger radius
-    .attr("fill", "rgba(0, 0, 255, 0.3)") // Transparent blue
+    .attr("r", 5) 
+    .attr("fill", "rgba(0, 0, 255, 0.3)") 
     .attr("stroke", "black")
     .attr("stroke-width", 1);
 
   let previousDate = -Infinity;
 
-  // Define the update function
+  
   const update = date => {
     dot.filter(d => d.date > previousDate && d.date <= date)
-      .transition().duration(0).attr("r", 5); // Ensure the radius is consistent
+      .transition().duration(0).attr("r", 5); 
     dot.filter(d => d.date <= previousDate && d.date > date)
       .transition().duration(0).attr("r", 0);
     previousDate = date;
   };
 
-  // Create the scrubber
+ 
   const dates = incidents.map(d => d.date).sort((a, b) => a - b);
   const scrubber = d3.select("#scrubber")
     .attr("max", dates.length - 1)
@@ -154,7 +152,7 @@ async function renderMap() {
       update(dates[this.value]);
     });
 
-  // Play button control
+
   let playing = false;
   const playButton = d3.select("#play-button");
   let interval;
@@ -175,15 +173,16 @@ async function renderMap() {
           playButton.text("Play");
           playing = false;
         }
-      }, 10); // Adjust the speed to make it faster
+      }, 10); 
       playButton.text("Pause");
     }
     playing = !playing;
   });
 }
 
-// Run the main function to render the map
+
 renderMap();
+
 </script>
 </body>
 </html>
