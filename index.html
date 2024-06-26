@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NYC Map of the summons of alcohol and drugs in 2023 </title>
+  <title>NYC Map of Summons for Alcohol and Drugs in 2023</title>
   <script src="https://d3js.org/d3.v6.min.js"></script>
   <script src="https://unpkg.com/topojson@3"></script>
   <style>
@@ -11,7 +11,7 @@
     }
     .title {
       text-align: center;
-      font-size: 32px; 
+      font-size: 32px;
       font-weight: bold;
       margin-top: 20px;
       margin-bottom: 20px;
@@ -29,17 +29,19 @@
 <body>
 <div class="title">NYC Alcohol and Drugs Summons in 2023</div>
 <div class="controls">
-  <button id="play-button" name="b" type="button" style="margin-right: 0.4em; width: 5em;">Play</button>
+  <button id="play-button" type="button" style="margin-right: 0.4em; width: 5em;">Play</button>
   <input id="scrubber" class="scrubber" type="range" min="0" max="1" step="1" value="0">
 </div>
 <script>
 const width = 960;
 const height = 600;
 
+
 const svg = d3.select("body").append("svg")
   .attr("viewBox", [0, 0, width, height])
   .attr("width", width)
   .attr("height", height);
+
 
 function addRandomOffset(coordinates) {
   const offset = 10; 
@@ -47,6 +49,7 @@ function addRandomOffset(coordinates) {
   const yOffset = (Math.random() - 0.5) * offset;
   return [coordinates[0] + xOffset, coordinates[1] + yOffset];
 }
+
 
 function normalizeDate(dateStr) {
   const dateFormats = ["%m/%d/%Y", "%m-%d-%y"];
@@ -59,6 +62,7 @@ function normalizeDate(dateStr) {
   return null; 
 }
 
+
 async function loadGeoJSON() {
   const nyc = await d3.json("Precincts.geojson");
   if (!nyc || !nyc.features) {
@@ -67,6 +71,7 @@ async function loadGeoJSON() {
   }
   return nyc;
 }
+
 
 async function loadCSV() {
   const data = await d3.csv("dataanddate.csv");
@@ -104,22 +109,21 @@ async function renderMap() {
 
   const precinctCoordinates = {};
   nyc.features.forEach(feature => {
-    const precinct = feature.properties.precinct; 
+    const precinct = feature.properties.precinct;
     const centroid = path.centroid(feature);
     precinctCoordinates[precinct] = centroid;
   });
 
   const incidents = filteredData.map(d => {
-    const precinct = String(d['precinct']); 
+    const precinct = String(d['precinct']);
     const coordinates = precinctCoordinates[precinct];
     const date = normalizeDate(d.SUMMONS_DATE);
     return {
       coordinates: addRandomOffset(coordinates),
       date: date
     };
-  }).filter(d => d.coordinates && d.date); // Filter out incidents with no coordinates or invalid dates
+  }).filter(d => d.coordinates && d.date);
 
-  // Sort the incidents by date
   incidents.sort((a, b) => a.date - b.date);
 
   const g = svg.append("g");
@@ -128,30 +132,28 @@ async function renderMap() {
     .data(incidents)
     .join("circle")
     .attr("transform", d => `translate(${d.coordinates[0]}, ${d.coordinates[1]})`)
-    .attr("r", 5) 
-    .attr("fill", "rgba(0, 0, 255, 0.3)") 
+    .attr("r", 5)
+    .attr("fill", "rgba(0, 0, 255, 0.3)")
     .attr("stroke", "black")
-    .attr("stroke-width", 1);
+    .attr("stroke-width", 1)
+    .attr("opacity", 0); 
 
   let previousDate = -Infinity;
 
-  
   const update = date => {
     dot.filter(d => d.date > previousDate && d.date <= date)
-      .transition().duration(0).attr("r", 5); 
+      .transition().duration(0).attr("opacity", 1);
     dot.filter(d => d.date <= previousDate && d.date > date)
-      .transition().duration(0).attr("r", 0);
+      .transition().duration(0).attr("opacity", 0);
     previousDate = date;
   };
 
- 
   const dates = incidents.map(d => d.date).sort((a, b) => a - b);
   const scrubber = d3.select("#scrubber")
     .attr("max", dates.length - 1)
     .on("input", function () {
       update(dates[this.value]);
     });
-
 
   let playing = false;
   const playButton = d3.select("#play-button");
@@ -173,7 +175,7 @@ async function renderMap() {
           playButton.text("Play");
           playing = false;
         }
-      }, 10); 
+      }, 50); 
       playButton.text("Pause");
     }
     playing = !playing;
@@ -182,7 +184,6 @@ async function renderMap() {
 
 
 renderMap();
-
 </script>
 </body>
 </html>
