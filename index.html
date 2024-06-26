@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NYC Map with Data Points</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <script src="https://unpkg.com/topojson@3"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .title {
+      text-align: center;
+      font-size: 32px; /* Increased font size */
+      font-weight: bold;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      margin: 10px;
+    }
+    .scrubber {
+      width: 80%;
+    }
+  </style>
+</head>
+<body>
+<div class="title">NYC Alcohol and Drugs Summons in 2023</div>
+<div class="controls">
+  <button id="play-button" name="b" type="button" style="margin-right: 0.4em; width: 5em;">Play</button>
+  <input id="scrubber" class="scrubber" type="range" min="0" max="1" step="1" value="0">
+</div>
+<script>
+const width = 960;
+const height = 600;
+
+const svg = d3.select("body").append("svg")
+  .attr("viewBox", [0, 0, width, height])
+  .attr("width", width)
+  .attr("height", height);
+
+function addRandomOffset(coordinates) {
+  const offset = 10; 
+  const xOffset = (Math.random() - 0.5) * offset;
+  const yOffset = (Math.random() - 0.5) * offset;
+  return [coordinates[0] + xOffset, coordinates[1] + yOffset];
+}
+
+function normalizeDate(dateStr) {
+  const dateFormats = ["%m/%d/%Y", "%m-%d-%y"];
+  for (const format of dateFormats) {
+    const parsedDate = d3.timeParse(format)(dateStr);
+    if (parsedDate) {
+      return parsedDate;
+    }
+  }
+  return null; 
+}
+
+async function loadGeoJSON() {
+  const nyc = await d3.json("Precincts.geojson");
+  if (!nyc || !nyc.features) {
+    console.error("Invalid GeoJSON structure");
+    return null;
+  }
+  return nyc;
+}
+
+async function loadCSV() {
+  const data = await d3.csv("dataanddate.csv");
+  if (!data || !data.length) {
+    console.error("Invalid CSV structure");
+    return null;
+  }
+  return data;
+}
+
+async function renderMap() {
+  const nyc = await loadGeoJSON();
+  if (!nyc) return;
+
+  const data = await loadCSV();
+  if (!data) return;
+
+  const projection = d3.geoMercator().fitSize([width, height], nyc);
+  const path = d3.geoPath().projection(projection);
+
+  svg.append("path")
+    .datum(nyc)
+    .attr("fill", "#ddd")
+    .attr("stroke", "#000")
+    .attr("d", path);
+
+  svg.append("path")
+    .datum(nyc)
+    .attr("fill", "none")
+    .attr("stroke", "white")
+    .attr("stroke-linejoin", "round")
+    .attr("d", path);
+
+  const filteredData = data.filter(d => d.CATEGORY === "ALCOHOL/DRUGS");
+
+  const precinctCoordinates = {};
+  nyc.features.forEach(feature => {
+    const precinct = feature.properties.precinct; 
+    const centroid = path.centroid(feature);
+    precinctCoordinates[precinct] = centroid;
+  });
+
+  const incidents = filteredData.map(d => {
+    const precinct = String(d['precinct']); 
+    const coordinates = precinctCoordinates[precinct];
+    const date = normalizeDate(d.SUMMONS_DATE);
+    return {
+      coordinates: addRandomOffset(coordinates),
+      date: date
+    };
+  }).filter(d => d.coordinates && d.date); // Filter out incidents with no coordinates or invalid dates
+
+  // Sort the incidents by date
+  incidents.sort((a, b) => a.date - b.date);
+
+  // Create a group for the circles
+  const g = svg.append("g");
+
+  // Bind data to circles
+  const dot = g.selectAll("circle")
+    .data(incidents)
+    .join("circle")
+    .attr("transform", d => `translate(${d.coordinates[0]}, ${d.coordinates[1]})`)
+    .attr("r", 5) // Bigger radius
+    .attr("fill", "rgba(0, 0, 255, 0.3)") // Transparent blue
+    .attr("stroke", "black")
+    .attr("stroke-width", 1);
+
+  let previousDate = -Infinity;
+
+  // Define the update function
+  const update = date => {
+    dot.filter(d => d.date > previousDate && d.date <= date)
+      .transition().duration(0).attr("r", 5); // Ensure the radius is consistent
+    dot.filter(d => d.date <= previousDate && d.date > date)
+      .transition().duration(0).attr("r", 0);
+    previousDate = date;
+  };
+
+  // Create the scrubber
+  const dates = incidents.map(d => d.date).sort((a, b) => a - b);
+  const scrubber = d3.select("#scrubber")
+    .attr("max", dates.length - 1)
+    .on("input", function () {
+      update(dates[this.value]);
+    });
+
+  // Play button control
+  let playing = false;
+  const playButton = d3.select("#play-button");
+  let interval;
+
+  playButton.on("click", function () {
+    if (playing) {
+      clearInterval(interval);
+      playButton.text("Play");
+    } else {
+      let i = +scrubber.property("value");
+      interval = setInterval(() => {
+        if (i < dates.length) {
+          scrubber.property("value", i);
+          update(dates[i]);
+          i++;
+        } else {
+          clearInterval(interval);
+          playButton.text("Play");
+          playing = false;
+        }
+      }, 10); // Adjust the speed to make it faster
+      playButton.text("Pause");
+    }
+    playing = !playing;
+  });
+}
+
+// Run the main function to render the map
+renderMap();
+</script>
+</body>
+</html>
