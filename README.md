@@ -7,3 +7,6 @@
 - Make the dots clearer 
 - Make the animation move faster
 - Add other categories of summons and more years
+
+
+This interactive map was inspired by "Walmart’s growth" by Mike Bostock. Check it here https://observablehq.com/@d3/walmarts-growth?intent=fork
